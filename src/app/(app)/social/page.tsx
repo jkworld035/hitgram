@@ -108,6 +108,13 @@ export default function SocialPage() {
               <div key={post.id} style={{ background:'#111',border:'1px solid rgba(255,255,255,0.06)',borderRadius:'20px',overflow:'hidden',animation:`fadeInUp 0.5s ease ${i*0.06}s both` }}>
                 <div style={{ padding:'14px 16px' }}>
                   <div style={{ fontSize:'14px',color:'#fff',lineHeight:'1.6',marginBottom:'10px' }}>{post.content}</div>
+                  {post.image_url && (
+                    <img src={post.image_url} alt="Post" style={{ width:'100%',maxHeight:'400px',objectFit:'cover',borderRadius:'12px',marginBottom:'12px',display:'block' }}
+                      onError={e => { e.currentTarget.style.display = 'none' }}/>
+                  )}
+                  {post.video_url && (
+                    <video src={post.video_url} controls playsInline style={{ width:'100%',maxHeight:'400px',borderRadius:'12px',marginBottom:'12px',display:'block' }}/>
+                  )}
                   {post.workout_tag && <div style={{ display:'inline-block',background:'rgba(170,255,0,0.1)',border:'1px solid rgba(170,255,0,0.2)',borderRadius:'20px',padding:'4px 12px',fontSize:'12px',color:'#AAFF00',fontWeight:'600',marginBottom:'8px' }}>{post.workout_tag}</div>}
                   {post.hashtags?.length>0 && (
                     <div style={{ display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'8px' }}>
