@@ -58,6 +58,16 @@ export default function DashboardPage() {
     return () => clearInterval(t)
   }, [healthScore])
 
+  // Auto step tracker — always on
+  useEffect(() => {
+    const { getAutoTracker } = require('@/lib/autoStepTracker')
+    const tracker = getAutoTracker()
+    const unsub = tracker.subscribe((data: any) => {
+      setLiveSteps(data.steps)
+    })
+    return unsub
+  }, [])
+
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
