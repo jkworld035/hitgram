@@ -352,6 +352,8 @@ export default function HealthPage() {
     )
   }
 
+  // Steps is handled by its own dedicated block below (with quick-select chips),
+  // so it's excluded from the generic vitals field loop.
   const sections = [
     {
       id: 'vitals',
@@ -361,7 +363,6 @@ export default function HealthPage() {
         { key:'water_ml', label:'Water', unit:'ml', ph:'2000', icon:'💧', color:'#00C6FF', type:'number' },
         { key:'sleep_minutes', label:'Sleep', unit:'min', ph:'480', icon:'🌙', color:'#A855F7', type:'number' },
         { key:'calories_consumed', label:'Calories', unit:'kcal', ph:'2000', icon:'🔥', color:'#FF6B35', type:'number' },
-        { key:'steps', label:'Steps', unit:'', ph:'8000', icon:'👟', color:'#22C55E', type:'number' },
       ]
     },
     {
@@ -390,6 +391,9 @@ export default function HealthPage() {
     borderRadius:'10px', padding:'10px 12px', color:'#fff', fontSize:'14px', fontWeight:'500',
     outline:'none', fontFamily:'inherit', transition:'border-color 0.2s, box-shadow 0.2s',
   } as React.CSSProperties)
+
+  const isStepsFlashing = detectFlash.includes('steps')
+  const stepsValue = log.steps ? String(log.steps) : ''
 
   return (
     <>
@@ -486,6 +490,40 @@ export default function HealthPage() {
                   Health log saved — great job staying consistent!
                 </div>
               )}
+
+              {/* Steps — dedicated field with quick-select */}
+              <div className="card" style={{ padding:'18px', marginBottom:'12px', background: isStepsFlashing ? 'rgba(0,255,163,0.03)' : undefined }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'10px' }}>
+                  <span style={{ fontSize:'12px', color:'#444', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.06em' }}>Steps Today</span>
+                  {isStepsFlashing && <span style={{ fontSize:'10px', color:'#00FFA3', fontWeight:'700', animation:'slideIn 0.3s ease' }}>● Auto-detected</span>}
+                </div>
+                <div style={{ display:'flex', gap:'10px', marginBottom:'8px' }}>
+                  <input
+                    type="number"
+                    placeholder="e.g. 8500"
+                    value={stepsValue}
+                    onChange={e => {
+                      const v = e.target.value
+                      setLog(p => ({ ...p, steps: v === '' ? 0 : parseInt(v) || 0 }))
+                    }}
+                    style={{ flex:1, background:'#0D0D0D', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'13px 16px', color:'#fff', fontSize:'14px', outline:'none' }}
+                    onFocus={e => e.target.style.borderColor = 'rgba(170,255,0,0.4)'}
+                    onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+                  />
+                </div>
+                <div style={{ fontSize:'11px', color:'#3A3A3A', marginBottom:'4px' }}>Quick select:</div>
+                <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+                  {[2000, 4000, 6000, 8000, 10000, 12000].map(n => (
+                    <button key={n} onClick={() => setLog(p => ({ ...p, steps: n }))}
+                      style={{ background: log.steps === n ? 'rgba(170,255,0,0.1)' : '#0D0D0D', border: `1px solid ${log.steps === n ? 'rgba(170,255,0,0.3)' : 'rgba(255,255,255,0.07)'}`, borderRadius:'20px', padding:'6px 12px', color: log.steps === n ? '#AAFF00' : '#3A3A3A', fontSize:'12px', fontWeight:'600', cursor:'pointer' }}>
+                      {n >= 1000 ? `${n/1000}k` : n}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ marginTop:'10px', background:'rgba(59,130,246,0.06)', border:'1px solid rgba(59,130,246,0.12)', borderRadius:'12px', padding:'10px 14px', fontSize:'12px', color:'#52525B', lineHeight:'1.5' }}>
+                  💡 Check Google Fit, Samsung Health or Apple Health on your phone for your real step count.
+                </div>
+              </div>
 
               {/* Sections */}
               {sections.map(section => (
