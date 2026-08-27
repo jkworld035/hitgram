@@ -193,48 +193,56 @@ Voice formatting — no markdown, no bullet dashes, no asterisks, natural spoken
 // ── MAIN HANDLER ──────────────────────────────────────────────
 export async function POST(req: Request) {
   try {
-    const { messages, type } = await req.json()
-    const lastMessage = messages[messages.length - 1]?.content || ''
+    const body = await req.json()
+    const { messages, type } = body
+    const lastMessage = messages?.[messages.length - 1]?.content || ''
 
-    // Try Anthropic Claude API first (real AI)
-    if (process.env.ANTHROPIC_API_KEY) {
+    // Try Anthropic Claude API first
+    if (process.env.ANTHROPIC_API_KEY?.startsWith('sk-ant-')) {
       try {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'Content-Type':    'application/json',
+            'x-api-key':       process.env.ANTHROPIC_API_KEY,
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model:      'claude-haiku-4-5-20251001',
             max_tokens: 1024,
-            system: SYSTEM_PROMPTS[type] || SYSTEM_PROMPTS.jarvis,
-            messages: messages.map((m: any) => ({
-              role: m.role === 'jarvis' || m.role === 'ira' || m.role === 'assistant' ? 'assistant' : 'user',
-              content: m.content || m.text || '',
-            })).filter((m: any) => m.content),
+            system:     SYSTEM_PROMPTS[type] || SYSTEM_PROMPTS.jarvis,
+            messages:   messages
+              .filter((m: any) => m.content || m.text)
+              .map((m: any) => ({
+                role:    m.role === 'ira' || m.role === 'assistant' ? 'assistant' : 'user',
+                content: String(m.content || m.text || ''),
+              }))
+              .slice(-10),
           }),
         })
 
         if (response.ok) {
-          const data = await response.json()
+          const data    = await response.json()
           const message = data.content?.[0]?.text
-          if (message) return NextResponse.json({ message })
+          if (message) {
+            return NextResponse.json({ message })
+          }
         }
-      } catch {
+      } catch (apiErr) {
+        console.error('Anthropic API error:', apiErr)
         // Fall through to knowledge engine
       }
     }
 
-    // Deep knowledge response engine
+    // Deep knowledge engine fallback — always works offline
     const message = getKnowledgeResponse(lastMessage, type || 'jarvis')
     return NextResponse.json({ message })
 
-  } catch (error) {
-    console.error('AI route error:', error)
+  } catch (err) {
+    console.error('Chat route error:', err)
+    // Always return something — never fail silently
     return NextResponse.json({
-      message: 'I am processing your request using my full knowledge base spanning science, philosophy, health, technology, history and the cosmos. Please ask me anything — I will give you the most comprehensive and accurate response I can synthesize from all domains of human knowledge.'
+      message: 'I am IRA, your Intelligent Response Assistant. I am ready to help you with health, fitness, nutrition, science, philosophy or any topic. What would you like to know?'
     })
   }
 }
