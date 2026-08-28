@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-type Msg = { role:'user'|'jarvis'; text:string; time:string }
+type Msg = { role:'user'|'ira'; text:string; time:string }
 type HistMsg = { role:'user'|'assistant'; content:string }
 
 const CMDS = [
@@ -15,7 +15,7 @@ const CMDS = [
   { label:'Stress relief', cmd:'I am stressed help me calm down right now' },
 ]
 
-export default function JarvisPage() {
+export default function IraPage() {
   const [listening, setListening] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -24,8 +24,8 @@ export default function JarvisPage() {
   const [voiceOn, setVoiceOn] = useState(true)
   const [bars, setBars] = useState<number[]>(Array(28).fill(3))
   const [messages, setMessages] = useState<Msg[]>([{
-    role:'jarvis',
-    text:'J.A.R.V.I.S online. All systems operational. I am your advanced personal AI optimized for health, fitness, nutrition, habits and life performance. How may I assist you today?',
+    role:'ira',
+    text:'IRA online. All systems operational. I am your advanced personal AI optimized for health, fitness, nutrition, habits and life performance. How may I assist you today?',
     time: new Date().toLocaleTimeString('en-US',{ hour:'2-digit',minute:'2-digit' })
   }])
   const history = useRef<HistMsg[]>([])
@@ -58,7 +58,7 @@ export default function JarvisPage() {
     u.rate=1.0; u.pitch=0.75; u.volume=1
     const setVoice = () => {
       const voices = window.speechSynthesis.getVoices()
-      const v = voices.find(v => v.name.includes('Google UK English Male')||v.name.includes('Microsoft David')||v.name.includes('Daniel')) || voices.find(v => v.lang.startsWith('en'))
+      const v = voices.find(v => v.name.includes('Google UK English Female')||v.name.includes('Microsoft Zira')||v.name.includes('Samantha')) || voices.find(v => v.lang.startsWith('en'))
       if (v) u.voice=v
     }
     window.speechSynthesis.getVoices().length>0 ? setVoice() : window.speechSynthesis.addEventListener('voiceschanged',setVoice,{once:true})
@@ -103,14 +103,15 @@ export default function JarvisPage() {
         headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({ type:'jarvis', messages:history.current.slice(-10) })
       })
+      if (!res.ok) throw new Error(`Request failed with status ${res.status}`)
       const data = await res.json()
       const reply = data.message||'I encountered an issue. Please try again.'
       history.current.push({ role:'assistant',content:reply })
-      setMessages(p=>[...p,{ role:'jarvis',text:reply,time:new Date().toLocaleTimeString('en-US',{ hour:'2-digit',minute:'2-digit' }) }])
+      setMessages(p=>[...p,{ role:'ira',text:reply,time:new Date().toLocaleTimeString('en-US',{ hour:'2-digit',minute:'2-digit' }) }])
       speak(reply)
     } catch {
       const err='Connection interrupted. Please try again.'
-      setMessages(p=>[...p,{ role:'jarvis',text:err,time:now }])
+      setMessages(p=>[...p,{ role:'ira',text:err,time:new Date().toLocaleTimeString('en-US',{ hour:'2-digit',minute:'2-digit' }) }])
     }
     setLoading(false)
   }
@@ -132,7 +133,7 @@ export default function JarvisPage() {
         <div style={{ display:'flex',alignItems:'center',gap:'10px' }}>
           <a href="/dashboard" style={{ width:'36px',height:'36px',borderRadius:'10px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',display:'flex',alignItems:'center',justifyContent:'center',color:'#666',fontSize:'16px',textDecoration:'none' }}>←</a>
           <div>
-            <div style={{ fontSize:'18px',fontWeight:'800',color:'#fff',letterSpacing:'0.06em' }}>J.A.R.V.I.S</div>
+            <div style={{ fontSize:'18px',fontWeight:'800',color:'#fff',letterSpacing:'0.06em' }}>I.R.A</div>
             <div style={{ fontSize:'9px',color:clr,fontWeight:'700',letterSpacing:'0.15em',transition:'color 0.4s' }}>
               {state==='listening'?'● LISTENING':state==='speaking'?'◉ SPEAKING':state==='thinking'?'◈ PROCESSING':'◎ ONLINE'}
             </div>
@@ -143,7 +144,7 @@ export default function JarvisPage() {
             style={{ width:'36px',height:'36px',borderRadius:'10px',background:voiceOn?'rgba(170,255,0,0.08)':'rgba(255,255,255,0.04)',border:`1px solid ${voiceOn?'rgba(170,255,0,0.2)':'rgba(255,255,255,0.06)'}`,color:voiceOn?'#AAFF00':'#555',fontSize:'16px',cursor:'pointer' }}>
             {voiceOn?'🔊':'🔇'}
           </button>
-          <button onClick={() => { history.current=[]; setMessages([{ role:'jarvis',text:'Memory cleared. Fresh session initialized.',time:new Date().toLocaleTimeString('en-US',{ hour:'2-digit',minute:'2-digit' }) }]) }}
+          <button onClick={() => { history.current=[]; setMessages([{ role:'ira',text:'Memory cleared. Fresh session initialized.',time:new Date().toLocaleTimeString('en-US',{ hour:'2-digit',minute:'2-digit' }) }]) }}
             style={{ width:'36px',height:'36px',borderRadius:'10px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',color:'#555',fontSize:'16px',cursor:'pointer' }}>↺</button>
         </div>
       </div>
@@ -175,8 +176,8 @@ export default function JarvisPage() {
       <div style={{ flex:1,overflowY:'auto',padding:'0 16px',display:'flex',flexDirection:'column',gap:'10px',maxHeight:'280px' }}>
         {messages.map((msg,i) => (
           <div key={i} style={{ display:'flex',justifyContent:msg.role==='user'?'flex-end':'flex-start',gap:'8px',alignItems:'flex-end' }}>
-            {msg.role==='jarvis' && (
-              <div style={{ width:'26px',height:'26px',borderRadius:'50%',background:'linear-gradient(135deg,#AAFF00,#22C55E)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:'900',color:'#000',flexShrink:0 }}>J</div>
+            {msg.role==='ira' && (
+              <div style={{ width:'26px',height:'26px',borderRadius:'50%',background:'linear-gradient(135deg,#AAFF00,#22C55E)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:'900',color:'#000',flexShrink:0 }}>I</div>
             )}
             <div style={{ maxWidth:'78%',display:'flex',flexDirection:'column',alignItems:msg.role==='user'?'flex-end':'flex-start',gap:'2px' }}>
               <div style={{ padding:'10px 14px',borderRadius:msg.role==='user'?'18px 18px 4px 18px':'18px 18px 18px 4px',background:msg.role==='user'?'linear-gradient(135deg,rgba(170,255,0,0.1),rgba(34,197,94,0.06))':'rgba(255,255,255,0.04)',border:`1px solid ${msg.role==='user'?'rgba(170,255,0,0.15)':'rgba(255,255,255,0.06)'}`,color:msg.role==='user'?'#DDFFAA':'#DEDEDE',fontSize:'13.5px',lineHeight:'1.65' }}>
@@ -188,7 +189,7 @@ export default function JarvisPage() {
         ))}
         {loading && (
           <div style={{ display:'flex',gap:'8px',alignItems:'flex-end' }}>
-            <div style={{ width:'26px',height:'26px',borderRadius:'50%',background:'linear-gradient(135deg,#AAFF00,#22C55E)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:'900',color:'#000' }}>J</div>
+            <div style={{ width:'26px',height:'26px',borderRadius:'50%',background:'linear-gradient(135deg,#AAFF00,#22C55E)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:'900',color:'#000' }}>I</div>
             <div style={{ padding:'11px 15px',borderRadius:'18px 18px 18px 4px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',display:'flex',gap:'5px',alignItems:'center' }}>
               {[0,1,2].map(j => <div key={j} style={{ width:'5px',height:'5px',borderRadius:'50%',background:'#AAFF00',animation:'bounce 1.2s ease infinite',animationDelay:`${j*0.2}s` }}/>)}
             </div>
@@ -213,7 +214,7 @@ export default function JarvisPage() {
       <div style={{ padding:'0 16px 12px',display:'flex',gap:'10px',position:'relative',zIndex:10 }}>
         <input value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key==='Enter'&&!e.shiftKey&&sendText()}
-          placeholder="Ask Jarvis anything..."
+          placeholder="Ask IRA anything..."
           disabled={loading}
           style={{ flex:1,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'14px',padding:'13px 16px',color:'#fff',fontSize:'14px',outline:'none',fontFamily:'Inter,sans-serif' }}
           onFocus={e => e.target.style.borderColor=`${clr}40`}
@@ -244,7 +245,7 @@ export default function JarvisPage() {
           </a>
           <a href="/jarvis" style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',textDecoration:'none',flex:1 }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#AAFF00" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-            <div style={{ fontSize:'10px',color:'#AAFF00',fontWeight:'700' }}>Jarvis</div>
+            <div style={{ fontSize:'10px',color:'#AAFF00',fontWeight:'700' }}>IRA</div>
           </a>
         </div>
       </div>
