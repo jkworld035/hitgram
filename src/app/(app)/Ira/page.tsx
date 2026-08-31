@@ -115,7 +115,11 @@ export default function IRAPage() {
     r.lang = 'en-US'; r.interimResults = true; r.continuous = false
     recogRef.current = r
     r.onstart  = () => setState('listening')
-    r.onend    = () => { if (state === 'listening') setState('idle'); setTranscript('') }
+    // Use the functional form of setState here — this callback fires asynchronously,
+    // long after this closure was created, so comparing against the plain `state`
+    // variable would always check its stale value from click-time (always 'idle'),
+    // never the live value. setState(prev => ...) always reads the current state.
+    r.onend    = () => { setState(prev => prev === 'listening' ? 'idle' : prev); setTranscript('') }
     r.onerror  = () => { setState('idle'); setTranscript('') }
     r.onresult = (e: any) => {
       const res = e.results[e.results.length - 1]
@@ -155,7 +159,7 @@ export default function IRAPage() {
         headers: { 'Content-Type': 'application/json' },
         signal:  controller.signal,
         body:    JSON.stringify({
-          type:     'jarvis',
+          type:     'Ira',
           messages: histRef.current.slice(-12),
         }),
       })
@@ -399,7 +403,7 @@ export default function IRAPage() {
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           {[
             {href:'/dashboard', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3A3A3A" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>, label:'Home'},
-            {href:'/ai',        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3A3A3A" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, label:'Aria'},
+            {href:'/ai',        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3A3A3A" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, label:'Ira'},
           ].map(n => (
             <a key={n.href} href={n.href} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', textDecoration:'none', flex:1 }}>
               {n.icon}<div style={{ fontSize:'10px', color:'#3A3A3A', fontWeight:'600' }}>{n.label}</div>
@@ -410,10 +414,10 @@ export default function IRAPage() {
           </a>
           {[
             {href:'/goals',  icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3A3A3A" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>, label:'Goals'},
-            {href:'/jarvis', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={cfg.color} strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>, label:'IRA'},
+            {href:'/ira', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={cfg.color} strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>, label:'IRA'},
           ].map(n => (
             <a key={n.href} href={n.href} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', textDecoration:'none', flex:1 }}>
-              {n.icon}<div style={{ fontSize:'10px', color:n.href==='/jarvis'?cfg.color:'#3A3A3A', fontWeight:n.href==='/jarvis'?'700':'600' }}>{n.label}</div>
+              {n.icon}<div style={{ fontSize:'10px', color:n.href==='/ira'?cfg.color:'#3A3A3A', fontWeight:n.href==='/ira'?'700':'600' }}>{n.label}</div>
             </a>
           ))}
         </div>
