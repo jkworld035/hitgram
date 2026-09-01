@@ -17,69 +17,58 @@ const QUICK_CMDS = [
 ]
 
 const STATE_CONFIG = {
-  idle:      { color: '#AAFF00', glow: 'rgba(170,255,0,0.35)',  label: '◎  READY',      sub: 'Tap orb or type to start'    },
-  listening: { color: '#FF4C4C', glow: 'rgba(255,76,76,0.45)',  label: '●  LISTENING',  sub: 'Speak now — I am listening'  },
-  thinking:  { color: '#FF9500', glow: 'rgba(255,149,0,0.45)',  label: '◈  THINKING',   sub: 'Processing your request...'  },
-  speaking:  { color: '#00CFFF', glow: 'rgba(0,207,255,0.45)',  label: '◉  SPEAKING',   sub: 'Tap orb to stop speaking'    },
+  idle:      { color: '#AAFF00', glow: 'rgba(170,255,0,0.35)',  label: '◎  READY',      sub: 'Tap orb or type to start'   },
+  listening: { color: '#FF4C4C', glow: 'rgba(255,76,76,0.45)',  label: '●  LISTENING',  sub: 'Speak now — I am listening' },
+  thinking:  { color: '#FF9500', glow: 'rgba(255,149,0,0.45)',  label: '◈  THINKING',   sub: 'Processing your request...' },
+  speaking:  { color: '#00CFFF', glow: 'rgba(0,207,255,0.45)',  label: '◉  SPEAKING',   sub: 'Tap orb to stop speaking'   },
 }
 
 export default function IRAPage() {
-  const [appState,   setAppState]   = useState<State>('idle')
-  const [messages,   setMessages]   = useState<Msg[]>([{
+  const [appState,        setAppState]        = useState<State>('idle')
+  const [messages,        setMessages]        = useState<Msg[]>([{
     role: 'ira',
     text: 'Hello! I am IRA — your Intelligent Response Assistant. I have deep knowledge across health, fitness, nutrition, science, philosophy and much more. Tap the orb to speak or type below!',
     time: new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' }),
   }])
-  const [input,      setInput]      = useState('')
-  const [voiceOn,    setVoiceOn]    = useState(true)
-  const [loading,    setLoading]    = useState(false)
-  const [transcript, setTranscript] = useState('')
-  const [bars,       setBars]       = useState<number[]>(Array(32).fill(3))
-  const [voiceSupported, setVoiceSupported] = useState(true)
+  const [input,           setInput]           = useState('')
+  const [voiceOn,         setVoiceOn]         = useState(true)
+  const [loading,         setLoading]         = useState(false)
+  const [transcript,      setTranscript]      = useState('')
+  const [bars,            setBars]            = useState<number[]>(Array(32).fill(3))
+  const [voiceSupported,  setVoiceSupported]  = useState(true)
   const [speechSupported, setSpeechSupported] = useState(true)
 
-  const histRef      = useRef<Hist[]>([])
-  const recogRef     = useRef<any>(null)
-  const synthRef     = useRef<SpeechSynthesisUtterance | null>(null)
-  const animRef      = useRef<number>(0)
-  const bottomRef    = useRef<HTMLDivElement>(null)
-  const inputRef     = useRef<HTMLInputElement>(null)
-  const voicesRef    = useRef<SpeechSynthesisVoice[]>([])
-  const stateRef     = useRef<State>('idle')
+  const histRef   = useRef<Hist[]>([])
+  const recogRef  = useRef<any>(null)
+  const animRef   = useRef<number>(0)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef  = useRef<HTMLInputElement>(null)
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([])
+  const stateRef  = useRef<State>('idle')
 
   const cfg = STATE_CONFIG[appState]
 
-  // Keep stateRef in sync
   useEffect(() => { stateRef.current = appState }, [appState])
 
-  // Check browser support
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SR) setVoiceSupported(false)
     if (!window.speechSynthesis) setSpeechSupported(false)
-
-    // Pre-load voices
-    const loadVoices = () => {
-      voicesRef.current = window.speechSynthesis?.getVoices() || []
-    }
-    loadVoices()
-    window.speechSynthesis?.addEventListener('voiceschanged', loadVoices)
-    return () => window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices)
+    const load = () => { voicesRef.current = window.speechSynthesis?.getVoices() || [] }
+    load()
+    window.speechSynthesis?.addEventListener('voiceschanged', load)
+    return () => window.speechSynthesis?.removeEventListener('voiceschanged', load)
   }, [])
 
-  // Auto scroll
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }) }, [messages, loading])
 
-  // Bar animation
   useEffect(() => {
     const animate = () => {
       setBars(prev => prev.map((_, i) => {
         const s = stateRef.current
         if (s === 'listening') return Math.random() * 48 + 4
         if (s === 'speaking')  return Math.abs(Math.sin(Date.now()/120 + i*0.35)) * 40 + 6
-        if (s === 'thinking')  return Math.abs(Math.sin(Date.now()/500 + i*0.7)) * 14 + 3
+        if (s === 'thinking')  return Math.abs(Math.sin(Date.now()/500 + i*0.7))  * 14 + 3
         return 3 + Math.abs(Math.sin(Date.now()/2000 + i*0.5)) * 2
       }))
       animRef.current = requestAnimationFrame(animate)
@@ -88,123 +77,27 @@ export default function IRAPage() {
     return () => cancelAnimationFrame(animRef.current)
   }, [])
 
-  // ── Pick best voice (Siri-like) ────────────────────────────
   const getBestVoice = useCallback((): SpeechSynthesisVoice | null => {
     const voices = voicesRef.current
     if (!voices.length) return null
-
-    // Priority order — most Siri-like voices
-    const preferred = [
-      'Samantha',           // iOS/macOS — closest to Siri
-      'Karen',              // Australian English
-      'Moira',              // Irish English
-      'Tessa',              // South African
-      'Google UK English Female',
-      'Microsoft Aria Online (Natural)',
-      'Microsoft Jenny Online (Natural)',
-      'Zira',
-      'Aria',
-      'Nova',
-    ]
-
+    const preferred = ['Samantha','Karen','Moira','Tessa','Google UK English Female','Microsoft Aria Online (Natural)','Microsoft Jenny Online (Natural)','Zira','Aria']
     for (const name of preferred) {
       const v = voices.find(v => v.name.includes(name))
       if (v) return v
     }
-
-    // Fallback: any English female
     return voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female'))
       || voices.find(v => v.lang.startsWith('en'))
       || voices[0]
   }, [])
 
-  // ── Speak text (Siri-like) ─────────────────────────────────
-  const speak = useCallback((text: string) => {
-    if (!voiceOn || !speechSupported) return
-
-    // Cancel any current speech
-    window.speechSynthesis.cancel()
-
-    // Clean text for speech
-    const clean = text
-      .replace(/[*#`>_~]/g, '')
-      .replace(/\n+/g, '. ')
-      .replace(/\s+/g, ' ')
-      .trim()
-
-    if (!clean) return
-
-    // Split long text into natural chunks for smoother delivery
-    const chunks = splitIntoChunks(clean, 200)
-    let chunkIndex = 0
-
-    const speakChunk = () => {
-      if (chunkIndex >= chunks.length || stateRef.current !== 'speaking') {
-        if (stateRef.current === 'speaking') setAppState('idle')
-        return
-      }
-
-      const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex])
-      synthRef.current = utterance
-
-      // Voice settings — Siri-like
-      const voice = getBestVoice()
-      if (voice) utterance.voice = voice
-      utterance.rate   = 0.95   // Slightly slower than default — natural pace
-      utterance.pitch  = 1.1    // Slightly higher — feminine/friendly
-      utterance.volume = 1.0
-
-      // Fine-tune per voice
-      if (voice?.name.includes('Samantha')) { utterance.rate = 1.0; utterance.pitch = 1.05 }
-      if (voice?.name.includes('Google'))   { utterance.rate = 0.92; utterance.pitch = 1.15 }
-      if (voice?.name.includes('Aria'))     { utterance.rate = 0.95; utterance.pitch = 1.1  }
-      if (voice?.name.includes('Zira'))     { utterance.rate = 0.90; utterance.pitch = 1.2  }
-
-      utterance.onstart = () => setAppState('speaking')
-
-      utterance.onend = () => {
-        chunkIndex++
-        if (chunkIndex < chunks.length && stateRef.current === 'speaking') {
-          // Small pause between chunks — natural flow
-          setTimeout(speakChunk, 80)
-        } else {
-          if (stateRef.current === 'speaking') setAppState('idle')
-        }
-      }
-
-      utterance.onerror = (e) => {
-        if (e.error !== 'interrupted') {
-          console.error('Speech error:', e.error)
-        }
-        if (stateRef.current === 'speaking') setAppState('idle')
-      }
-
-      // Chrome bug fix — keep synthesis alive for long text
-      const keepAlive = setInterval(() => {
-        if (!window.speechSynthesis.speaking) clearInterval(keepAlive)
-        else window.speechSynthesis.pause(), window.speechSynthesis.resume()
-      }, 10000)
-
-      window.speechSynthesis.speak(utterance)
-    }
-
-    setAppState('speaking')
-    speakChunk()
-  }, [voiceOn, speechSupported, getBestVoice])
-
-  // Split text into natural chunks at sentence boundaries
   const splitIntoChunks = (text: string, maxLen: number): string[] => {
     if (text.length <= maxLen) return [text]
     const sentences = text.match(/[^.!?]+[.!?]+/g) || [text]
     const chunks: string[] = []
     let current = ''
     for (const s of sentences) {
-      if ((current + s).length > maxLen && current) {
-        chunks.push(current.trim())
-        current = s
-      } else {
-        current += s
-      }
+      if ((current + s).length > maxLen && current) { chunks.push(current.trim()); current = s }
+      else current += s
     }
     if (current.trim()) chunks.push(current.trim())
     return chunks.length ? chunks : [text]
@@ -212,152 +105,114 @@ export default function IRAPage() {
 
   const stopSpeaking = useCallback(() => {
     window.speechSynthesis?.cancel()
-    synthRef.current = null
     setAppState('idle')
   }, [])
 
-  // ── Voice input (speech recognition) ──────────────────────
+  const speak = useCallback((text: string) => {
+    if (!voiceOn || !speechSupported) return
+    window.speechSynthesis.cancel()
+    const clean = text.replace(/[*#`>_~]/g,'').replace(/\n+/g,'. ').replace(/\s+/g,' ').trim()
+    if (!clean) return
+    const chunks = splitIntoChunks(clean, 200)
+    let idx = 0
+    const speakChunk = () => {
+      if (idx >= chunks.length || stateRef.current !== 'speaking') {
+        if (stateRef.current === 'speaking') setAppState('idle')
+        return
+      }
+      const u = new SpeechSynthesisUtterance(chunks[idx])
+      const voice = getBestVoice()
+      if (voice) u.voice = voice
+      u.rate = 0.95; u.pitch = 1.1; u.volume = 1.0
+      if (voice?.name.includes('Samantha')) { u.rate = 1.0;  u.pitch = 1.05 }
+      if (voice?.name.includes('Google'))   { u.rate = 0.92; u.pitch = 1.15 }
+      if (voice?.name.includes('Zira'))     { u.rate = 0.90; u.pitch = 1.2  }
+      u.onstart = () => setAppState('speaking')
+      u.onend   = () => { idx++; if (idx < chunks.length && stateRef.current === 'speaking') setTimeout(speakChunk, 80); else if (stateRef.current === 'speaking') setAppState('idle') }
+      u.onerror = () => { if (stateRef.current === 'speaking') setAppState('idle') }
+      const ka = setInterval(() => { if (!window.speechSynthesis.speaking) clearInterval(ka); else { window.speechSynthesis.pause(); window.speechSynthesis.resume() } }, 10000)
+      window.speechSynthesis.speak(u)
+    }
+    setAppState('speaking')
+    speakChunk()
+  }, [voiceOn, speechSupported, getBestVoice])
+
   const startListening = useCallback(() => {
     if (!voiceSupported) { alert('Voice input requires Chrome or Edge browser'); return }
     if (appState === 'speaking') stopSpeaking()
-
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const recog = new SR()
     recogRef.current = recog
-
-    recog.lang            = 'en-US'
-    recog.interimResults  = true
-    recog.continuous      = false
-    recog.maxAlternatives = 1
-
-    recog.onstart = () => {
-      setAppState('listening')
-      setTranscript('')
-    }
-
+    recog.lang = 'en-US'; recog.interimResults = true; recog.continuous = false
+    recog.onstart  = () => { setAppState('listening'); setTranscript('') }
     recog.onresult = (e: any) => {
-      let interim = ''
-      let final   = ''
+      let final = '', interim = ''
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) final += t
-        else interim += t
+        if (e.results[i].isFinal) final += t; else interim += t
       }
       setTranscript(final || interim)
-      if (final) {
-        setTranscript('')
-        recog.stop()
-        sendMessage(final.trim())
-      }
+      if (final) { setTranscript(''); recog.stop(); sendMessage(final.trim()) }
     }
-
     recog.onerror = (e: any) => {
-      console.error('Speech recognition error:', e.error)
-      setTranscript('')
-      setAppState('idle')
-      if (e.error === 'not-allowed') alert('Microphone permission denied. Please allow microphone access.')
+      setTranscript(''); setAppState('idle')
+      if (e.error === 'not-allowed') alert('Microphone permission denied.')
     }
-
-    recog.onend = () => {
-      if (stateRef.current === 'listening') setAppState('idle')
-      setTranscript('')
-    }
-
+    recog.onend = () => { if (stateRef.current === 'listening') setAppState('idle'); setTranscript('') }
     recog.start()
   }, [voiceSupported, appState, stopSpeaking])
 
   const stopListening = useCallback(() => {
-    recogRef.current?.stop()
-    setTranscript('')
-    setAppState('idle')
+    recogRef.current?.stop(); setTranscript(''); setAppState('idle')
   }, [])
 
-  // ── Send message to IRA ────────────────────────────────────
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || loading) return
-
-    const now    = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
-    const userMsg: Msg = { role:'user', text: text.trim(), time: now }
-    setMessages(p => [...p, userMsg])
-    histRef.current.push({ role:'user', content: text.trim() })
+    const now = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
+    setMessages(p => [...p, { role:'user', text:text.trim(), time:now }])
+    histRef.current.push({ role:'user', content:text.trim() })
     setInput('')
     setLoading(true)
     setAppState('thinking')
-
     try {
       const controller = new AbortController()
       const timeout    = setTimeout(() => controller.abort(), 30000)
-
       const res = await fetch('/api/ai/chat', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal:  controller.signal,
-        body:    JSON.stringify({
-          type:     'jarvis',
-          messages: histRef.current.slice(-12),
-        }),
+        method: 'POST', signal: controller.signal,
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ type:'jarvis', messages: histRef.current.slice(-12) }),
       })
-
       clearTimeout(timeout)
-
       if (!res.ok) throw new Error(`API ${res.status}`)
-
       const data  = await res.json()
-      const reply = data.message || data.reply || data.text || ''
-
-      if (!reply) throw new Error('Empty response')
-
-      histRef.current.push({ role:'assistant', content: reply })
-
-      const replyTime = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
-      setMessages(p => [...p, { role:'ira', text: reply, time: replyTime }])
+      const reply = data.message || data.reply || data.text || 'Sorry, I could not generate a response.'
+      histRef.current.push({ role:'assistant', content:reply })
+      const rt = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
+      setMessages(p => [...p, { role:'ira', text:reply, time:rt }])
       setLoading(false)
-
-      // Auto-speak response
-      if (voiceOn && speechSupported) {
-        speak(reply)
-      } else {
-        setAppState('idle')
-      }
-
+      if (voiceOn && speechSupported) speak(reply); else setAppState('idle')
     } catch (err: any) {
-      console.error('IRA error:', err)
       setLoading(false)
-      const errMsg = err.name === 'AbortError'
-        ? 'Request timed out. Please try again.'
-        : 'I had trouble connecting. Please check your internet and try again.'
-      setMessages(p => [...p, { role:'ira', text: errMsg, time: new Date().toLocaleTimeString() }])
+      const msg = err.name === 'AbortError' ? 'Request timed out. Please try again.' : 'Connection issue. Please try again.'
+      setMessages(p => [...p, { role:'ira', text:msg, time:new Date().toLocaleTimeString() }])
       setAppState('idle')
     }
   }, [loading, voiceOn, speechSupported, speak])
 
-  // ── Orb tap handler ────────────────────────────────────────
   const handleOrb = useCallback(() => {
     if (appState === 'speaking')  { stopSpeaking();  return }
     if (appState === 'listening') { stopListening(); return }
     if (appState === 'idle')      { startListening(); return }
   }, [appState, stopSpeaking, stopListening, startListening])
 
-  const handleSend = () => {
-    if (input.trim()) sendMessage(input)
-  }
+  const handleSend = () => { if (input.trim()) sendMessage(input) }
 
   const clearChat = () => {
     stopSpeaking()
     histRef.current = []
-    setMessages([{
-      role: 'ira',
-      text: 'Memory cleared. Ready for a fresh conversation! What would you like to explore?',
-      time: new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' }),
-    }])
+    setMessages([{ role:'ira', text:'Memory cleared! Fresh start. What would you like to explore?', time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) }])
   }
 
-  const toggleVoice = () => {
-    if (voiceOn && appState === 'speaking') stopSpeaking()
-    setVoiceOn(v => !v)
-  }
-
-  // Replay last IRA message
   const replayLast = () => {
     const last = [...messages].reverse().find(m => m.role === 'ira')
     if (last) speak(last.text)
@@ -366,27 +221,22 @@ export default function IRAPage() {
   return (
     <div style={{ minHeight:'100vh', background:'#060608', display:'flex', flexDirection:'column', fontFamily:'"SF Pro Display",-apple-system,Inter,sans-serif', paddingBottom:'90px', maxWidth:'480px', margin:'0 auto', position:'relative', overflow:'hidden' }}>
       <style>{`
-        @keyframes orbFloat   { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
-        @keyframes spinRing   { to{transform:rotate(360deg)} }
-        @keyframes spinRingR  { to{transform:rotate(-360deg)} }
-        @keyframes bounce     { 0%,60%,100%{transform:translateY(0);opacity:.35} 30%{transform:translateY(-9px);opacity:1} }
-        @keyframes fadeSlide  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes glowPulse  { 0%,100%{opacity:.55} 50%{opacity:1} }
-        @keyframes spin       { to{transform:rotate(360deg)} }
-        @keyframes ripple     { 0%{transform:scale(0.8);opacity:0.8} 100%{transform:scale(2.2);opacity:0} }
-        *::-webkit-scrollbar  { display:none }
+        @keyframes orbFloat  { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+        @keyframes spinRing  { to{transform:rotate(360deg)} }
+        @keyframes spinRingR { to{transform:rotate(-360deg)} }
+        @keyframes bounce    { 0%,60%,100%{transform:translateY(0);opacity:.35} 30%{transform:translateY(-9px);opacity:1} }
+        @keyframes fadeSlide { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes glowPulse { 0%,100%{opacity:.55} 50%{opacity:1} }
+        @keyframes spin      { to{transform:rotate(360deg)} }
+        @keyframes ripple    { 0%{transform:scale(0.8);opacity:0.8} 100%{transform:scale(2.2);opacity:0} }
+        *::-webkit-scrollbar { display:none }
       `}</style>
 
-      {/* Ambient background glow */}
+      {/* Background */}
       <div style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none' }}>
-        <div style={{ position:'absolute', top:'-80px', left:'50%', transform:'translateX(-50%)', width:'500px', height:'360px', borderRadius:'50%', background:`radial-gradient(ellipse,${cfg.glow} 0%,transparent 68%)`, transition:'background 0.7s ease', animation:'glowPulse 3s ease-in-out infinite' }}/>
-        {/* Grid pattern */}
+        <div style={{ position:'absolute', top:'-80px', left:'50%', transform:'translateX(-50%)', width:'500px', height:'360px', borderRadius:'50%', background:`radial-gradient(ellipse,${cfg.glow} 0%,transparent 68%)`, transition:'background 0.7s', animation:'glowPulse 3s ease-in-out infinite' }}/>
         <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', opacity:0.04 }}>
-          <defs>
-            <pattern id="grid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M40 0L0 0 0 40" fill="none" stroke={cfg.color} strokeWidth="0.5"/>
-            </pattern>
-          </defs>
+          <defs><pattern id="grid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0L0 0 0 40" fill="none" stroke={cfg.color} strokeWidth="0.5"/></pattern></defs>
           <rect width="100%" height="100%" fill="url(#grid)" style={{ transition:'stroke 0.7s' }}/>
         </svg>
       </div>
@@ -395,42 +245,31 @@ export default function IRAPage() {
       <div style={{ position:'sticky', top:0, zIndex:30, background:'rgba(6,6,8,0.93)', backdropFilter:'blur(28px)', borderBottom:`1px solid ${cfg.color}15`, padding:'52px 20px 16px', transition:'border-color 0.7s' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-            <a href="/dashboard" style={{ width:'38px', height:'38px', borderRadius:'12px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', justifyContent:'center', color:'#666', textDecoration:'none', fontSize:'16px', transition:'all 0.2s' }}>←</a>
-            <div>
-              <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:`linear-gradient(135deg,${cfg.color},#22C55E)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'900', color:'#000', boxShadow:`0 0 16px ${cfg.glow}`, transition:'all 0.7s' }}>I</div>
-                <div>
-                  <div style={{ fontSize:'17px', fontWeight:'800', color:'#fff', letterSpacing:'0.08em' }}>I·R·A</div>
-                  <div style={{ fontSize:'8px', color:'#3A3A3A', letterSpacing:'0.18em', textTransform:'uppercase' }}>Intelligent Response Assistant</div>
-                </div>
+            <a href="/dashboard" style={{ width:'38px', height:'38px', borderRadius:'12px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', justifyContent:'center', color:'#666', textDecoration:'none', fontSize:'16px' }}>←</a>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:`linear-gradient(135deg,${cfg.color},#22C55E)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'900', color:'#000', boxShadow:`0 0 16px ${cfg.glow}`, transition:'all 0.7s' }}>I</div>
+              <div>
+                <div style={{ fontSize:'17px', fontWeight:'800', color:'#fff', letterSpacing:'0.08em' }}>I·R·A</div>
+                <div style={{ fontSize:'8px', color:'#3A3A3A', letterSpacing:'0.18em', textTransform:'uppercase' }}>Intelligent Response Assistant</div>
               </div>
             </div>
           </div>
-
-          {/* Controls */}
-          <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-            {/* Status badge */}
+          <div style={{ display:'flex', gap:'8px' }}>
             <div style={{ display:'flex', alignItems:'center', gap:'5px', background:`${cfg.color}10`, border:`1px solid ${cfg.color}25`, borderRadius:'20px', padding:'5px 11px', transition:'all 0.5s' }}>
               <div style={{ width:'5px', height:'5px', borderRadius:'50%', background:cfg.color, animation:'glowPulse 1.4s infinite' }}/>
               <span style={{ fontSize:'9px', color:cfg.color, fontWeight:'700', letterSpacing:'0.1em' }}>{cfg.label}</span>
             </div>
-
-            {/* Voice toggle */}
-            <button onClick={toggleVoice} title={voiceOn ? 'Voice On — click to mute' : 'Voice Off — click to enable'}
+            <button onClick={() => { if (voiceOn && appState==='speaking') stopSpeaking(); setVoiceOn(v=>!v) }}
               style={{ width:'36px', height:'36px', borderRadius:'10px', background:voiceOn?`${cfg.color}12`:'rgba(255,255,255,0.04)', border:`1px solid ${voiceOn?cfg.color+'30':'rgba(255,255,255,0.07)'}`, cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.3s' }}>
-              {voiceOn ? '🔊' : '🔇'}
+              {voiceOn?'🔊':'🔇'}
             </button>
-
-            {/* Replay */}
             {messages.length > 1 && (
-              <button onClick={replayLast} title="Replay last response" disabled={appState !== 'idle'}
-                style={{ width:'36px', height:'36px', borderRadius:'10px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', cursor:'pointer', fontSize:'15px', display:'flex', alignItems:'center', justifyContent:'center', opacity:appState!=='idle'?0.4:1, transition:'all 0.3s' }}>
+              <button onClick={replayLast} disabled={appState!=='idle'}
+                style={{ width:'36px', height:'36px', borderRadius:'10px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', cursor:'pointer', fontSize:'15px', display:'flex', alignItems:'center', justifyContent:'center', opacity:appState!=='idle'?0.4:1 }}>
                 ▶
               </button>
             )}
-
-            {/* Clear */}
-            <button onClick={clearChat} title="Clear conversation"
+            <button onClick={clearChat}
               style={{ width:'36px', height:'36px', borderRadius:'10px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', color:'#555', cursor:'pointer', fontSize:'15px', display:'flex', alignItems:'center', justifyContent:'center' }}>
               ↺
             </button>
@@ -438,75 +277,45 @@ export default function IRAPage() {
         </div>
       </div>
 
-      {/* Orb + Visualizer section */}
+      {/* Orb + Visualizer */}
       <div style={{ position:'relative', zIndex:10, display:'flex', flexDirection:'column', alignItems:'center', padding:'20px 20px 12px' }}>
-
-        {/* Audio visualizer bars */}
+        {/* Visualizer bars */}
         <div style={{ display:'flex', alignItems:'center', gap:'2px', height:'56px', marginBottom:'18px' }}>
           {bars.map((h, i) => {
             const dist = Math.abs(i - bars.length/2) / (bars.length/2)
-            const opacity = 0.15 + (h/48)*0.85 * (1 - dist*0.4)
             return (
-              <div key={i} style={{
-                width: '2.5px',
-                height: `${Math.max(3, h)}px`,
-                borderRadius: '2px',
-                background: `linear-gradient(180deg,${cfg.color},${cfg.color}20)`,
-                opacity,
-                transition: 'height 0.05s ease, background 0.7s',
-              }}/>
+              <div key={i} style={{ width:'2.5px', height:`${Math.max(3,h)}px`, borderRadius:'2px', background:`linear-gradient(180deg,${cfg.color},${cfg.color}20)`, opacity:0.15+(h/48)*0.85*(1-dist*0.4), transition:'height 0.05s ease, background 0.7s' }}/>
             )
           })}
         </div>
 
         {/* Main Orb */}
-        <div onClick={handleOrb} style={{ position:'relative', width:'168px', height:'168px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', animation: appState==='idle' ? 'orbFloat 4s ease-in-out infinite' : 'none' }}>
-
-          {/* Ripple when speaking/listening */}
-          {(appState === 'speaking' || appState === 'listening') && (
+        <div onClick={handleOrb} style={{ position:'relative', width:'168px', height:'168px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', animation:appState==='idle'?'orbFloat 4s ease-in-out infinite':'none' }}>
+          {(appState==='speaking'||appState==='listening') && (
             <>
               <div style={{ position:'absolute', inset:'-20px', borderRadius:'50%', border:`1.5px solid ${cfg.color}25`, animation:'ripple 2s ease-out infinite' }}/>
               <div style={{ position:'absolute', inset:'-10px', borderRadius:'50%', border:`1.5px solid ${cfg.color}30`, animation:'ripple 2s ease-out infinite 0.5s' }}/>
             </>
           )}
-
-          {/* Outer rings */}
-          <div style={{ position:'absolute', inset:'-20px', borderRadius:'50%', border:`1px solid ${cfg.color}08`, animation: appState!=='idle'?'spinRing 10s linear infinite':'none', transition:'border-color 0.7s' }}/>
-          <div style={{ position:'absolute', inset:'-10px', borderRadius:'50%', border:`1px solid ${cfg.color}12`, animation: appState!=='idle'?'spinRingR 6s linear infinite':'none', transition:'border-color 0.7s' }}/>
-          <div style={{ position:'absolute', inset:'16px',  borderRadius:'50%', border:`1px dashed ${cfg.color}10`, animation: appState!=='idle'?'spinRing 4s linear infinite':'none', transition:'border-color 0.7s' }}/>
-
-          {/* Orb body */}
-          <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle at 35% 28%,${cfg.color}18 0%,#080812 55%,#060608 100%)`, border:`1.5px solid ${cfg.color}28`, boxShadow:`0 0 0 12px ${cfg.color}06,0 0 0 28px ${cfg.color}02,0 0 70px ${cfg.glow},inset 0 0 40px ${cfg.color}04`, transition:'all 0.7s ease' }}/>
-
-          {/* Orb center content */}
+          <div style={{ position:'absolute', inset:'-20px', borderRadius:'50%', border:`1px solid ${cfg.color}08`, animation:appState!=='idle'?'spinRing 10s linear infinite':'none' }}/>
+          <div style={{ position:'absolute', inset:'-10px', borderRadius:'50%', border:`1px solid ${cfg.color}12`, animation:appState!=='idle'?'spinRingR 6s linear infinite':'none' }}/>
+          <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle at 35% 28%,${cfg.color}18 0%,#080812 55%,#060608 100%)`, border:`1.5px solid ${cfg.color}28`, boxShadow:`0 0 0 12px ${cfg.color}06,0 0 0 28px ${cfg.color}02,0 0 70px ${cfg.glow},inset 0 0 40px ${cfg.color}04`, transition:'all 0.7s' }}/>
           <div style={{ position:'relative', zIndex:2, textAlign:'center', userSelect:'none' }}>
-            {appState === 'idle' && (
-              <>
-                <div style={{ fontSize:'28px', fontWeight:'900', color:cfg.color, letterSpacing:'0.06em', textShadow:`0 0 24px ${cfg.color}`, lineHeight:1 }}>IRA</div>
-                <div style={{ fontSize:'8px', color:`${cfg.color}50`, letterSpacing:'0.25em', marginTop:'3px' }}>AI</div>
-              </>
+            {appState==='idle' && (
+              <><div style={{ fontSize:'28px', fontWeight:'900', color:cfg.color, textShadow:`0 0 24px ${cfg.color}`, lineHeight:1 }}>IRA</div>
+              <div style={{ fontSize:'8px', color:`${cfg.color}50`, letterSpacing:'0.25em', marginTop:'3px' }}>AI</div></>
             )}
-            {appState === 'listening' && (
-              <div style={{ fontSize:'40px', filter:`drop-shadow(0 0 16px ${cfg.color})`, animation:'glowPulse 0.8s ease-in-out infinite' }}>🎙</div>
-            )}
-            {appState === 'thinking' && (
-              <div style={{ width:'32px', height:'32px', border:`3px solid ${cfg.color}20`, borderTop:`3px solid ${cfg.color}`, borderRadius:'50%', animation:'spin 0.9s linear infinite', margin:'0 auto' }}/>
-            )}
-            {appState === 'speaking' && (
-              <div style={{ fontSize:'40px', filter:`drop-shadow(0 0 16px ${cfg.color})` }}>📡</div>
-            )}
+            {appState==='listening' && <div style={{ fontSize:'40px', filter:`drop-shadow(0 0 16px ${cfg.color})`, animation:'glowPulse 0.8s ease-in-out infinite' }}>🎙</div>}
+            {appState==='thinking'  && <div style={{ width:'32px', height:'32px', border:`3px solid ${cfg.color}20`, borderTop:`3px solid ${cfg.color}`, borderRadius:'50%', animation:'spin 0.9s linear infinite', margin:'0 auto' }}/>}
+            {appState==='speaking'  && <div style={{ fontSize:'40px', filter:`drop-shadow(0 0 16px ${cfg.color})` }}>📡</div>}
           </div>
         </div>
 
-        {/* Status text */}
-        <div style={{ marginTop:'14px', textAlign:'center', minHeight:'36px' }}>
+        {/* Status */}
+        <div style={{ marginTop:'14px', textAlign:'center', minHeight:'40px' }}>
           <div style={{ fontSize:'13px', fontWeight:'700', color:cfg.color, letterSpacing:'0.04em', transition:'color 0.5s' }}>{cfg.sub}</div>
-          {transcript && (
-            <div style={{ fontSize:'12px', color:'#555', fontStyle:'italic', marginTop:'5px', maxWidth:'260px', animation:'fadeSlide 0.2s ease both' }}>
-              "{transcript}"
-            </div>
-          )}
-          {appState === 'speaking' && (
+          {transcript && <div style={{ fontSize:'12px', color:'#555', fontStyle:'italic', marginTop:'5px', maxWidth:'260px' }}>"{transcript}"</div>}
+          {appState==='speaking' && (
             <button onClick={stopSpeaking}
               style={{ marginTop:'8px', background:'rgba(255,76,76,0.1)', border:'1px solid rgba(255,76,76,0.25)', borderRadius:'20px', padding:'5px 14px', color:'#FF4C4C', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>
               ⏹ Stop Speaking
@@ -516,11 +325,7 @@ export default function IRAPage() {
 
         {/* Info strip */}
         <div style={{ display:'flex', gap:'24px', marginTop:'14px', padding:'10px 24px', background:'rgba(255,255,255,0.02)', borderRadius:'20px', border:'1px solid rgba(255,255,255,0.04)' }}>
-          {[
-            { label:'MODE',   value:appState.toUpperCase()  },
-            { label:'VOICE',  value:voiceOn ? 'ON' : 'OFF'  },
-            { label:'MSGS',   value:String(messages.length)  },
-          ].map(d => (
+          {[{label:'MODE',value:appState.toUpperCase()},{label:'VOICE',value:voiceOn?'ON':'OFF'},{label:'MSGS',value:String(messages.length)}].map(d => (
             <div key={d.label} style={{ textAlign:'center' }}>
               <div style={{ fontSize:'8px', color:'#2A2A2A', fontWeight:'700', letterSpacing:'0.14em', marginBottom:'2px' }}>{d.label}</div>
               <div style={{ fontSize:'11px', color:cfg.color, fontWeight:'800', letterSpacing:'0.06em', transition:'color 0.5s' }}>{d.value}</div>
@@ -533,44 +338,25 @@ export default function IRAPage() {
       <div style={{ flex:1, overflowY:'auto', padding:'0 16px', display:'flex', flexDirection:'column', gap:'10px', maxHeight:'280px', zIndex:10, position:'relative' }}>
         {messages.map((msg, i) => (
           <div key={i} style={{ display:'flex', justifyContent:msg.role==='user'?'flex-end':'flex-start', gap:'8px', alignItems:'flex-end', animation:'fadeSlide 0.35s ease both' }}>
-
-            {msg.role === 'ira' && (
-              <div style={{ width:'30px', height:'30px', borderRadius:'50%', background:`linear-gradient(135deg,${cfg.color},#22C55E)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'900', color:'#000', flexShrink:0, transition:'background 0.7s', boxShadow:`0 0 10px ${cfg.glow}` }}>I</div>
+            {msg.role==='ira' && (
+              <div style={{ width:'30px', height:'30px', borderRadius:'50%', background:`linear-gradient(135deg,${cfg.color},#22C55E)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'900', color:'#000', flexShrink:0, boxShadow:`0 0 10px ${cfg.glow}`, transition:'background 0.7s' }}>I</div>
             )}
-
             <div style={{ maxWidth:'80%', display:'flex', flexDirection:'column', alignItems:msg.role==='user'?'flex-end':'flex-start', gap:'3px' }}>
-              <div style={{
-                padding: '11px 15px',
-                borderRadius: msg.role==='user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                background: msg.role==='user'
-                  ? `linear-gradient(135deg,${cfg.color}16,rgba(34,197,94,0.08))`
-                  : 'rgba(255,255,255,0.045)',
-                border: `1px solid ${msg.role==='user' ? cfg.color+'22' : 'rgba(255,255,255,0.07)'}`,
-                color: msg.role==='user' ? '#E8FFD0' : '#E2E2E2',
-                fontSize: '13.5px',
-                lineHeight: '1.75',
-                backdropFilter: 'blur(8px)',
-                transition: 'border-color 0.7s',
-                wordBreak: 'break-word',
-                cursor: msg.role==='ira' ? 'pointer' : 'default',
-              }}
-              onClick={() => { if (msg.role === 'ira' && voiceOn) speak(msg.text) }}
-              title={msg.role === 'ira' ? 'Click to replay' : ''}>
+              <div
+                onClick={() => { if (msg.role==='ira' && voiceOn) speak(msg.text) }}
+                style={{ padding:'11px 15px', borderRadius:msg.role==='user'?'18px 18px 4px 18px':'18px 18px 18px 4px', background:msg.role==='user'?`linear-gradient(135deg,${cfg.color}16,rgba(34,197,94,0.08))`:'rgba(255,255,255,0.045)', border:`1px solid ${msg.role==='user'?cfg.color+'22':'rgba(255,255,255,0.07)'}`, color:msg.role==='user'?'#E8FFD0':'#E2E2E2', fontSize:'13.5px', lineHeight:'1.75', backdropFilter:'blur(8px)', wordBreak:'break-word', cursor:msg.role==='ira'?'pointer':'default', transition:'border-color 0.7s' }}>
                 {msg.text}
               </div>
               <div style={{ fontSize:'10px', color:'#272727', paddingInline:'4px' }}>
-                {msg.role === 'ira' ? 'IRA' : 'You'} · {msg.time}
-                {msg.role === 'ira' && voiceOn && <span style={{ marginLeft:'6px', color:`${cfg.color}40`, fontSize:'9px' }}>tap to replay</span>}
+                {msg.role==='ira'?'IRA':'You'} · {msg.time}
+                {msg.role==='ira' && voiceOn && <span style={{ marginLeft:'6px', color:`${cfg.color}40`, fontSize:'9px' }}>tap to replay</span>}
               </div>
             </div>
-
-            {msg.role === 'user' && (
+            {msg.role==='user' && (
               <div style={{ width:'30px', height:'30px', borderRadius:'50%', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', flexShrink:0 }}>👤</div>
             )}
           </div>
         ))}
-
-        {/* Thinking dots */}
         {loading && (
           <div style={{ display:'flex', gap:'8px', alignItems:'flex-end', animation:'fadeSlide 0.3s ease both' }}>
             <div style={{ width:'30px', height:'30px', borderRadius:'50%', background:`linear-gradient(135deg,${cfg.color},#22C55E)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'900', color:'#000', flexShrink:0 }}>I</div>
@@ -588,7 +374,7 @@ export default function IRAPage() {
       <div style={{ padding:'10px 16px 8px', overflowX:'auto', zIndex:10, position:'relative' }}>
         <div style={{ display:'flex', gap:'7px', width:'max-content' }}>
           {QUICK_CMDS.map((c, i) => (
-            <button key={i} onClick={() => sendMessage(c.text)} disabled={loading || appState==='listening'}
+            <button key={i} onClick={() => sendMessage(c.text)} disabled={loading||appState==='listening'}
               style={{ flexShrink:0, background:`${cfg.color}06`, border:`1px solid ${cfg.color}18`, borderRadius:'20px', padding:'7px 14px', color:`${cfg.color}90`, fontSize:'11px', fontWeight:'600', cursor:'pointer', whiteSpace:'nowrap', opacity:loading?0.45:1, transition:'all 0.3s' }}
               onMouseEnter={e=>{e.currentTarget.style.background=`${cfg.color}14`;e.currentTarget.style.color=cfg.color}}
               onMouseLeave={e=>{e.currentTarget.style.background=`${cfg.color}06`;e.currentTarget.style.color=`${cfg.color}90`}}>
@@ -598,32 +384,23 @@ export default function IRAPage() {
         </div>
       </div>
 
-      {/* Input row */}
+      {/* Input */}
       <div style={{ padding:'0 16px 12px', display:'flex', gap:'10px', zIndex:10, position:'relative' }}>
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key==='Enter' && !e.shiftKey && handleSend()}
-          placeholder={voiceSupported ? 'Type or tap the orb to speak...' : 'Ask IRA anything...'}
-          disabled={loading || appState==='listening'}
+        <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&handleSend()} placeholder={voiceSupported?'Type or tap orb to speak...':'Ask IRA anything...'} disabled={loading||appState==='listening'}
           style={{ flex:1, background:'rgba(255,255,255,0.04)', border:`1.5px solid ${input?cfg.color+'40':cfg.color+'18'}`, borderRadius:'16px', padding:'13px 18px', color:'#fff', fontSize:'14px', outline:'none', fontFamily:'inherit', transition:'border-color 0.3s', opacity:loading?0.65:1 }}
-          onFocus={e => e.target.style.borderColor=`${cfg.color}55`}
-          onBlur={e  => e.target.style.borderColor=`${input?cfg.color+'40':cfg.color+'18'}`}
-        />
-        <button onClick={handleSend} disabled={loading || !input.trim() || appState==='listening'}
-          style={{ width:'50px', height:'50px', borderRadius:'16px', background: input.trim()&&!loading ? `linear-gradient(135deg,${cfg.color},#22C55E)` : 'rgba(255,255,255,0.05)', border:'none', cursor: input.trim()&&!loading ? 'pointer' : 'default', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow: input.trim()&&!loading ? `0 0 22px ${cfg.glow}` : 'none', transition:'all 0.3s' }}>
+          onFocus={e=>e.target.style.borderColor=`${cfg.color}55`} onBlur={e=>e.target.style.borderColor=`${input?cfg.color+'40':cfg.color+'18'}`}/>
+        <button onClick={handleSend} disabled={loading||!input.trim()||appState==='listening'}
+          style={{ width:'50px', height:'50px', borderRadius:'16px', background:input.trim()&&!loading?`linear-gradient(135deg,${cfg.color},#22C55E)`:'rgba(255,255,255,0.05)', border:'none', cursor:input.trim()&&!loading?'pointer':'default', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:input.trim()&&!loading?`0 0 22px ${cfg.glow}`:'none', transition:'all 0.3s' }}>
           {loading
             ? <div style={{ width:'18px', height:'18px', border:`2px solid ${cfg.color}25`, borderTop:`2px solid ${cfg.color}`, borderRadius:'50%', animation:'spin 0.8s linear infinite' }}/>
             : <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={input.trim()?'#000':'#333'} strokeWidth="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>}
         </button>
       </div>
 
-      {/* Voice not supported notice */}
       {!voiceSupported && (
         <div style={{ padding:'0 16px 8px', zIndex:10, position:'relative' }}>
           <div style={{ background:'rgba(234,179,8,0.06)', border:'1px solid rgba(234,179,8,0.15)', borderRadius:'12px', padding:'8px 14px', fontSize:'11px', color:'#EAB308', textAlign:'center' }}>
-            💡 Voice input requires Chrome or Edge browser. Text input works everywhere.
+            💡 Voice input requires Chrome or Edge. Text input works everywhere.
           </div>
         </div>
       )}
