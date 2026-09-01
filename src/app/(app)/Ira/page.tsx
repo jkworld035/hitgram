@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 type Msg   = { role: 'user' | 'ira'; text: string; time: string }

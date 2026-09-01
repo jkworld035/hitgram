@@ -995,7 +995,7 @@ function ResultPage({ plan, data, router, supabase }: { plan: AIPlan; data: Asse
             style={{ width:'100%', background:'#AAFF00', color:'#000', border:'none', borderRadius:'16px', padding:'16px', fontSize:'16px', fontWeight:'900', cursor:'pointer', boxShadow:'0 0 30px rgba(170,255,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }}>
             {saving ? '⏳ Saving...' : saved ? '✓ Saved!' : '🚀 Start My Journey'}
           </button>
-          <button onClick={() => router.push('/jarvis')}
+          <button onClick={() => router.push('/ira')}
             style={{ width:'100%', background:'transparent', color:'#AAFF00', border:'1px solid rgba(170,255,0,0.3)', borderRadius:'16px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor:'pointer' }}>
             Talk to IRA About My Plan
           </button>

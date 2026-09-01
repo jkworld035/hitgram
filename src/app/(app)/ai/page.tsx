@@ -204,7 +204,7 @@ export default function AriaPage() {
                 ↺
               </button>
             )}
-            <a href="/jarvis"
+            <a href="/ira"
               style={{ display:'flex', alignItems:'center', gap:'6px', background:'rgba(170,255,0,0.08)', border:'1px solid rgba(170,255,0,0.2)', borderRadius:'20px', padding:'8px 14px', textDecoration:'none', transition:'all 0.2s' }}
               onMouseEnter={e=>{e.currentTarget.style.background='rgba(170,255,0,0.14)'}}
               onMouseLeave={e=>{e.currentTarget.style.background='rgba(170,255,0,0.08)'}}>
@@ -438,7 +438,7 @@ export default function AriaPage() {
           </a>
           {[
             {href:'/goals',icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3A3A3A" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,label:'Goals'},
-            {href:'/jarvis',icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3A3A3A" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>,label:'IRA'},
+            {href:'/ira',icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3A3A3A" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>,label:'IRA'},
           ].map(n=>(
             <a key={n.href} href={n.href} style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',textDecoration:'none',flex:1 }}>
               {n.icon}<div style={{ fontSize:'10px',color:'#3A3A3A',fontWeight:'600' }}>{n.label}</div>
