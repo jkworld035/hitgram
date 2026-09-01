@@ -22,7 +22,7 @@ export async function proxy(request: NextRequest) {
 
   const protectedPaths = [
   '/dashboard','/health','/habits','/meals','/workout',
-  '/ai','/jarvis','/goals','/social','/profile',
+  '/ai','/ira','/goals','/social','/profile',
   '/create-post','/reminders','/health-live','/onboarding',
   '/assessment',
 ]
