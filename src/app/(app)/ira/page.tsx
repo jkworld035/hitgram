@@ -6,22 +6,36 @@ type Hist  = { role: 'user' | 'assistant'; content: string }
 type State = 'idle' | 'listening' | 'thinking' | 'speaking'
 
 const QUICK_CMDS = [
-  { label: '💪 Workout Plan',  text: 'Create a personalized workout plan for me today' },
-  { label: '🥗 Meal Plan',     text: 'What should I eat today for optimal energy?' },
-  { label: '😴 Sleep Tips',    text: 'How can I improve my sleep quality tonight?' },
-  { label: '⚡ Motivate Me',   text: 'Give me a powerful motivational message right now' },
-  { label: '🧠 Focus Mode',    text: 'Help me get into deep focus for the next 2 hours' },
-  { label: '🔥 Habit Stack',   text: 'Build me a morning habit stack for peak performance' },
-  { label: '🏃 HIIT Workout',  text: 'Give me a 20 minute HIIT workout I can do at home' },
-  { label: '🧘 Calm Down',     text: 'I am stressed, help me calm down right now' },
+  { label: '🧠 Consciousness',    text: 'Explain the hard problem of consciousness and why it matters' },
+  { label: '⚛️ Quantum World',    text: 'Explain quantum entanglement and what it means for reality' },
+  { label: '🌌 Universe Scale',   text: 'Help me truly understand the scale of the universe' },
+  { label: '💪 Peak Performance', text: 'Give me the science of peak human performance optimization' },
+  { label: '🤖 Future of AI',     text: 'What is the future of AI and how will it change humanity?' },
+  { label: '🧬 Human Biology',    text: 'Explain the most amazing facts about how the human body works' },
+  { label: '📐 Mathematics',      text: 'What are the most beautiful unsolved problems in mathematics?' },
+  { label: '🏋️ Workout Science',  text: 'Give me the exact science of building muscle and losing fat simultaneously' },
+  { label: '😴 Sleep Science',    text: 'Explain the neuroscience of sleep and how to optimize it' },
+  { label: '🌿 Longevity',        text: 'What does science say about living longer and healthier?' },
+  { label: '🎯 Deep Focus',       text: 'How do I achieve flow state and deep focus consistently?' },
+  { label: '💡 Creativity',       text: 'What is the neuroscience of creativity and how do I enhance it?' },
 ]
-
 const STATE_CONFIG = {
   idle:      { color: '#AAFF00', glow: 'rgba(170,255,0,0.35)',  label: '◎  READY',      sub: 'Tap orb or type to start'   },
   listening: { color: '#FF4C4C', glow: 'rgba(255,76,76,0.45)',  label: '●  LISTENING',  sub: 'Speak now — I am listening' },
   thinking:  { color: '#FF9500', glow: 'rgba(255,149,0,0.45)',  label: '◈  THINKING',   sub: 'Processing your request...' },
   speaking:  { color: '#00CFFF', glow: 'rgba(0,207,255,0.45)',  label: '◉  SPEAKING',   sub: 'Tap orb to stop speaking'   },
 }
+
+// Ordered by how reliably each one is a female-sounding voice across
+// Chrome / Edge / Safari. Used both as an exact-name match and as a
+// substring hint so regional variants ("Microsoft Aria Online (Natural) -
+// English (United States)") still match.
+const FEMALE_VOICE_HINTS = [
+  'Samantha', 'Karen', 'Moira', 'Tessa', 'Fiona', 'Victoria', 'Susan', 'Hazel',
+  'Google UK English Female', 'Google US English Female',
+  'Microsoft Aria Online (Natural)', 'Microsoft Jenny Online (Natural)',
+  'Microsoft Zira', 'Zira', 'Aria', 'Jenny', 'Emma', 'Ava',
+]
 
 export default function IRAPage() {
   const [appState,        setAppState]        = useState<State>('idle')
@@ -51,13 +65,32 @@ export default function IRAPage() {
   useEffect(() => { stateRef.current = appState }, [appState])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    // Check speech recognition support
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SR) setVoiceSupported(false)
-    if (!window.speechSynthesis) setSpeechSupported(false)
-    const load = () => { voicesRef.current = window.speechSynthesis?.getVoices() || [] }
-    load()
-    window.speechSynthesis?.addEventListener('voiceschanged', load)
-    return () => window.speechSynthesis?.removeEventListener('voiceschanged', load)
+    // Check speech synthesis support
+    if (!window.speechSynthesis) {
+      setSpeechSupported(false)
+      return
+    }
+    // Load voices immediately
+    const loadVoices = () => {
+      const v = window.speechSynthesis.getVoices()
+      if (v.length > 0) {
+        voicesRef.current = v
+        console.log('Voices loaded:', v.length, v.map(x => x.name).slice(0,5))
+      }
+    }
+    loadVoices()
+    // Chrome loads voices async
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
+    // Force load on some browsers
+    setTimeout(loadVoices, 500)
+    setTimeout(loadVoices, 1500)
+    return () => {
+      window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices)
+    }
   }, [])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }) }, [messages, loading])
@@ -77,65 +110,84 @@ export default function IRAPage() {
     return () => cancelAnimationFrame(animRef.current)
   }, [])
 
-  const getBestVoice = useCallback((): SpeechSynthesisVoice | null => {
-    const voices = voicesRef.current
-    if (!voices.length) return null
-    const preferred = ['Samantha','Karen','Moira','Tessa','Google UK English Female','Microsoft Aria Online (Natural)','Microsoft Jenny Online (Natural)','Zira','Aria']
-    for (const name of preferred) {
-      const v = voices.find(v => v.name.includes(name))
-      if (v) return v
-    }
-    return voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female'))
-      || voices.find(v => v.lang.startsWith('en'))
-      || voices[0]
-  }, [])
-
-  const splitIntoChunks = (text: string, maxLen: number): string[] => {
-    if (text.length <= maxLen) return [text]
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text]
-    const chunks: string[] = []
-    let current = ''
-    for (const s of sentences) {
-      if ((current + s).length > maxLen && current) { chunks.push(current.trim()); current = s }
-      else current += s
-    }
-    if (current.trim()) chunks.push(current.trim())
-    return chunks.length ? chunks : [text]
-  }
-
   const stopSpeaking = useCallback(() => {
     window.speechSynthesis?.cancel()
     setAppState('idle')
   }, [])
 
+  // Picks the best female voice available. Tries the curated name list first
+  // (most reliable), then anything whose name/voiceURI literally says
+  // "female", and only as a last resort (no female-flagged voice installed
+  // at all) falls back to the first English voice so speech still works.
+  const pickFemaleVoice = (voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null => {
+    for (const name of FEMALE_VOICE_HINTS) {
+      const exact = voices.find(v => v.name === name)
+      if (exact) return exact
+    }
+    for (const name of FEMALE_VOICE_HINTS) {
+      const partial = voices.find(v => v.name.includes(name))
+      if (partial) return partial
+    }
+    const byFemaleTag = voices.find(
+      v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female')
+    )
+    if (byFemaleTag) return byFemaleTag
+
+    console.log('No female-flagged voice found, falling back to first English voice')
+    return voices.find(v => v.lang.startsWith('en')) || voices[0] || null
+  }
+
   const speak = useCallback((text: string) => {
     if (!voiceOn || !speechSupported) return
+    // Must cancel first
     window.speechSynthesis.cancel()
-    const clean = text.replace(/[*#`>_~]/g,'').replace(/\n+/g,'. ').replace(/\s+/g,' ').trim()
+    // Clean text
+    const clean = text
+      .replace(/[*#`>_~\[\]]/g, '')
+      .replace(/\n+/g, '. ')
+      .replace(/\s+/g, ' ')
+      .replace(/\.+/g, '.')
+      .trim()
+      .slice(0, 800) // limit length for smooth delivery
     if (!clean) return
-    const chunks = splitIntoChunks(clean, 200)
-    let idx = 0
-    const speakChunk = () => {
-      if (idx >= chunks.length || stateRef.current !== 'speaking') {
-        if (stateRef.current === 'speaking') setAppState('idle')
-        return
+    // Small delay needed for cancel to take effect
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(clean)
+      // Get voices — prefer whatever voiceschanged already loaded into
+      // voicesRef, fall back to a fresh getVoices() call
+      const voices = voicesRef.current.length ? voicesRef.current : window.speechSynthesis.getVoices()
+      const selectedVoice = pickFemaleVoice(voices)
+      if (selectedVoice) utterance.voice = selectedVoice
+      // Siri-like settings
+      utterance.rate   = 0.92
+      utterance.pitch  = 1.1
+      utterance.volume = 1.0
+      utterance.lang   = 'en-US'
+      utterance.onstart = () => {
+        stateRef.current = 'speaking'
+        setAppState('speaking')
       }
-      const u = new SpeechSynthesisUtterance(chunks[idx])
-      const voice = getBestVoice()
-      if (voice) u.voice = voice
-      u.rate = 0.95; u.pitch = 1.1; u.volume = 1.0
-      if (voice?.name.includes('Samantha')) { u.rate = 1.0;  u.pitch = 1.05 }
-      if (voice?.name.includes('Google'))   { u.rate = 0.92; u.pitch = 1.15 }
-      if (voice?.name.includes('Zira'))     { u.rate = 0.90; u.pitch = 1.2  }
-      u.onstart = () => setAppState('speaking')
-      u.onend   = () => { idx++; if (idx < chunks.length && stateRef.current === 'speaking') setTimeout(speakChunk, 80); else if (stateRef.current === 'speaking') setAppState('idle') }
-      u.onerror = () => { if (stateRef.current === 'speaking') setAppState('idle') }
-      const ka = setInterval(() => { if (!window.speechSynthesis.speaking) clearInterval(ka); else { window.speechSynthesis.pause(); window.speechSynthesis.resume() } }, 10000)
-      window.speechSynthesis.speak(u)
-    }
-    setAppState('speaking')
-    speakChunk()
-  }, [voiceOn, speechSupported, getBestVoice])
+      utterance.onend = () => {
+        stateRef.current = 'idle'
+        setAppState('idle')
+      }
+      utterance.onerror = (e) => {
+        console.log('Speech error:', e.error)
+        stateRef.current = 'idle'
+        setAppState('idle')
+      }
+      // Chrome fix - keepalive
+      const keepAlive = setInterval(() => {
+        if (!window.speechSynthesis.speaking) {
+          clearInterval(keepAlive)
+        } else {
+          window.speechSynthesis.pause()
+          window.speechSynthesis.resume()
+        }
+      }, 14000)
+      window.speechSynthesis.speak(utterance)
+    }, 100)
+  }, [voiceOn, speechSupported])
 
   const startListening = useCallback(() => {
     if (!voiceSupported) { alert('Voice input requires Chrome or Edge browser'); return }
@@ -190,7 +242,11 @@ export default function IRAPage() {
       const rt = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
       setMessages(p => [...p, { role:'ira', text:reply, time:rt }])
       setLoading(false)
-      if (voiceOn && speechSupported) speak(reply); else setAppState('idle')
+      setAppState('idle')
+      if (voiceOn && speechSupported) {
+        // Small delay so UI updates first
+        setTimeout(() => speak(reply), 300)
+      }
     } catch (err: any) {
       setLoading(false)
       const msg = err.name === 'AbortError' ? 'Request timed out. Please try again.' : 'Connection issue. Please try again.'
@@ -263,6 +319,21 @@ export default function IRAPage() {
               style={{ width:'36px', height:'36px', borderRadius:'10px', background:voiceOn?`${cfg.color}12`:'rgba(255,255,255,0.04)', border:`1px solid ${voiceOn?cfg.color+'30':'rgba(255,255,255,0.07)'}`, cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.3s' }}>
               {voiceOn?'🔊':'🔇'}
             </button>
+            {/* Test voice button */}
+            {speechSupported && (
+              <button
+                onClick={() => speak('Hello! I am IRA, your Intelligent Response Assistant. Voice is working perfectly!')}
+                title="Test voice"
+                style={{
+                  width:'36px', height:'36px', borderRadius:'10px',
+                  background:'rgba(255,255,255,0.04)',
+                  border:'1px solid rgba(255,255,255,0.07)',
+                  cursor:'pointer', fontSize:'15px',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                🔈
+              </button>
+            )}
             {messages.length > 1 && (
               <button onClick={replayLast} disabled={appState!=='idle'}
                 style={{ width:'36px', height:'36px', borderRadius:'10px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', cursor:'pointer', fontSize:'15px', display:'flex', alignItems:'center', justifyContent:'center', opacity:appState!=='idle'?0.4:1 }}>
