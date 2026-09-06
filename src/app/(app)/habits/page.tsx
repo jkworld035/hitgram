@@ -60,12 +60,7 @@ export default function HabitsPage() {
       setUserId(user.id)
 
       // Ensure profile exists — this is critical for habits to save
-      await supabase.from('profiles').upsert({
-        id:         user.id,
-        username:   user.email?.split('@')[0] || 'user',
-        full_name:  user.email?.split('@')[0] || 'User',
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' })
+      await supabase.from('profiles').upsert({ id: user.id, name: user.email?.split('@')[0] || 'user', email: user.email || '', role: 'user', bio: '' }, { onConflict: 'id' })
 
       await Promise.all([
         fetchHabits(user.id),

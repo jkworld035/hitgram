@@ -65,11 +65,7 @@ export default function GoalsPage() {
     setUserId(user.id)
 
     // Ensure profile exists
-    await supabase.from('profiles').upsert({
-      id: user.id,
-      username: user.email?.split('@')[0],
-      full_name: user.email?.split('@')[0],
-    }, { onConflict: 'id' })
+    await supabase.from('profiles').upsert({ id: user.id, name: user.email?.split('@')[0] || 'user', email: user.email || '', role: 'user', bio: '' }, { onConflict: 'id' })
 
     await fetchGoals(user.id)
     setLoading(false)
