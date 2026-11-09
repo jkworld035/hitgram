@@ -232,7 +232,7 @@ export default function IRAPage() {
       const res = await fetch('/api/ai/chat', {
         method: 'POST', signal: controller.signal,
         headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ type:'jarvis', messages: histRef.current.slice(-12) }),
+        body: JSON.stringify({ type:'Ira', messages: histRef.current.slice(-12) }),
       })
       clearTimeout(timeout)
       if (!res.ok) throw new Error(`API ${res.status}`)

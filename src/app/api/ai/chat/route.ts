@@ -120,7 +120,7 @@ function generateUltraResponse(message: string, type: string): string {
 // ── SYSTEM PROMPTS ────────────────────────────────────────────
 const SYSTEM_PROMPTS: Record<string, string> = {
 
-  jarvis: `You are IRA — Intelligent Response Assistant — the most advanced AI health and knowledge assistant ever created for Hitgram by JKWorld Technologies.
+    Ira: `You are IRA — Intelligent Response Assistant— the most advanced AI health and knowledge assistant ever created for Hitgram by JKWorld Technologies.
 
 Your intelligence encompasses EVERY domain of human knowledge:
 
@@ -177,7 +177,7 @@ export async function POST(req: Request) {
     // Try Anthropic Claude API first
     if (process.env.ANTHROPIC_API_KEY?.startsWith('sk-ant-')) {
       try {
-        const systemPrompt = SYSTEM_PROMPTS[type] || SYSTEM_PROMPTS.jarvis
+        const systemPrompt = SYSTEM_PROMPTS[type] || SYSTEM_PROMPTS.Ira
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
